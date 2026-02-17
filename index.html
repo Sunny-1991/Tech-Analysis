@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>企业财务可视化</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script defer src="data.js"></script>
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel header-panel">
+        <p class="kicker">Interactive Financial Dashboard</p>
+        <h1>企业财务可视化</h1>
+        <p class="subtitle">Bloomberg 风格信息界面，同图切换营收、净利润、毛利率、市盈率、ROE、营收增速，支持季度/年度/滚动年度（TTM）三粒度与区间筛选。</p>
+        <div class="meta-chips" aria-label="页面信息">
+          <span class="chip">时间范围：2005Q1-2025Q4</span>
+          <span class="chip">粒度：季度 + 年度 + 滚动年度（TTM）</span>
+          <span class="chip">单位：美元</span>
+          <span class="chip">支持 2025 缺失值预测</span>
+          <span class="chip">可下载当前图表 CSV</span>
+          <button id="themeToggleBtn" class="theme-toggle" type="button" aria-pressed="false">切换为深色专业</button>
+        </div>
+        <p class="source-note">
+          数据来源：SEC CompanyFacts、CompaniesMarketCap、StockAnalysis。口径：营收与净利润为季度财报数据（美元）；毛利率按毛利润/营收计算；市盈率为报告期估值指标；ROE 按净利润/净资产计算；营收增速为同比。支持季度、年度与滚动年度（TTM）浏览。
+        </p>
+      </section>
+
+      <section class="panel content-panel">
+        <aside class="control-panel">
+          <div class="control-header">
+            <h2>分析控制</h2>
+            <p>切换指标、粒度和公司显示范围</p>
+          </div>
+
+          <section class="control-group">
+            <h3>指标切换</h3>
+            <div class="metric-switch" role="radiogroup" aria-label="指标切换">
+              <label class="metric-item">
+                <input type="radio" name="metric" value="revenue" checked />
+                <span>营收（十亿美元）</span>
+              </label>
+              <label class="metric-item">
+                <input type="radio" name="metric" value="netIncome" />
+                <span>净利润（十亿美元）</span>
+              </label>
+              <label class="metric-item">
+                <input type="radio" name="metric" value="grossMargin" />
+                <span>毛利率（%）</span>
+              </label>
+              <label class="metric-item">
+                <input type="radio" name="metric" value="pe" />
+                <span>市盈率（P/E）</span>
+              </label>
+              <label class="metric-item">
+                <input type="radio" name="metric" value="roe" />
+                <span>ROE（%）</span>
+              </label>
+              <label class="metric-item">
+                <input type="radio" name="metric" value="revenueGrowth" />
+                <span>营收增速（同比 %）</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="control-group">
+            <h3>时间粒度</h3>
+            <div class="frequency-switch" role="radiogroup" aria-label="时间粒度切换">
+              <label class="metric-item segment-item">
+                <input type="radio" name="frequency" value="quarterly" checked />
+                <span>季度</span>
+              </label>
+              <label class="metric-item segment-item">
+                <input type="radio" name="frequency" value="annual" />
+                <span>年度</span>
+              </label>
+              <label class="metric-item segment-item">
+                <input type="radio" name="frequency" value="rollingAnnual" />
+                <span>滚动年度 TTM</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="control-group">
+            <h3>公司显示</h3>
+            <div id="companyToggles" class="toggle-list" aria-label="公司显示开关"></div>
+
+            <div class="control-actions">
+              <button id="showAllBtn" type="button">全部显示</button>
+              <button id="hideAllBtn" type="button">全部隐藏</button>
+            </div>
+          </section>
+
+          <div class="control-foot">
+            <p class="hint">提示：可切换季度/年度/滚动年度（TTM），并通过底部双端滑块筛选时间区间。</p>
+
+            <div class="sources">
+              <a href="https://companiesmarketcap.com/" target="_blank" rel="noopener noreferrer">数据来源链接</a>
+            </div>
+          </div>
+        </aside>
+
+        <div class="chart-panel">
+          <div class="chart-head">
+            <div>
+              <h2>指标趋势总览</h2>
+              <p>可在左侧切换指标，并按公司单独对比。</p>
+            </div>
+            <div class="chart-actions">
+              <button id="downloadBtn" type="button">下载当前指标 CSV</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="financeChart" aria-label="科技公司财务指标对比折线图"></canvas>
+          </div>
+          <div class="range-panel" aria-label="时间区间滑块">
+            <div class="range-head">
+              <span>显示区间</span>
+              <span id="rangeLabel">-</span>
+            </div>
+            <div id="rangeSliders" class="range-sliders">
+              <div class="range-axis">
+                <div class="range-track"></div>
+                <div id="rangeFill" class="range-fill"></div>
+                <input id="rangeStart" type="range" min="0" max="0" value="0" aria-label="开始时间" />
+                <input id="rangeEnd" type="range" min="0" max="0" value="0" aria-label="结束时间" />
+              </div>
+            </div>
+          </div>
+          <p id="statusText" class="status-text">正在加载数据...</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
