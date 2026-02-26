@@ -16,22 +16,25 @@ const ANNUAL_LABELS = [...new Set(QUARTER_LABELS.map((p) => p.slice(0, 4)))];
 
 const FREQUENCY_META = {
   quarterly: {
-    axisTitle: "季度",
-    tooltipPrefix: "季度",
+    axisTitle: "QTR",
+    granularityLabel: "季度",
+    tooltipPrefix: "QTR",
     csvPeriodicity: "Quarterly",
     csvPeriodColumn: "Period",
     fileToken: "quarterly",
   },
   annual: {
-    axisTitle: "年份",
-    tooltipPrefix: "年份",
+    axisTitle: "FY",
+    granularityLabel: "年度",
+    tooltipPrefix: "FY",
     csvPeriodicity: "Annual",
     csvPeriodColumn: "Year",
     fileToken: "annual",
   },
   rollingAnnual: {
-    axisTitle: "季度（滚动年度）",
-    tooltipPrefix: "季度（滚动年度）",
+    axisTitle: "TTM QTR",
+    granularityLabel: "滚动年度（TTM）",
+    tooltipPrefix: "TTM",
     csvPeriodicity: "RollingAnnual (TTM)",
     csvPeriodColumn: "Period",
     fileToken: "rolling-annual",
@@ -112,8 +115,10 @@ const rightTickerLabelsPlugin = {
     ctx.save();
     const css = getComputedStyle(document.body);
     const tickerStroke = css.getPropertyValue("--ticker-stroke").trim() || "rgba(9, 14, 22, 0.88)";
+    const chartFontFamily =
+      css.getPropertyValue("--font-chart").trim() || css.getPropertyValue("--font-main").trim() || '"Plus Jakarta Sans", sans-serif';
     const isDeepTheme = document.body.dataset.theme === "deep";
-    ctx.font = '600 11px "IBM Plex Mono", monospace';
+    ctx.font = `600 11px ${chartFontFamily}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.lineWidth = 3;
@@ -190,6 +195,8 @@ const THEME_STORAGE_KEY = "enterprise-finance-dashboard-theme";
 
 const decimalFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const csvDecimalFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
+const BASE_Y_AXIS_TITLE_FONT_SIZE = 11;
+const Y_AXIS_TITLE_FONT_SIZE = BASE_Y_AXIS_TITLE_FONT_SIZE * 1.6;
 
 const state = {
   chart: null,
@@ -259,13 +266,24 @@ function setStatus(text, isError = false) {
 
 function getChartThemeTokens() {
   const css = getComputedStyle(document.body);
+  const axisFallback = css.getPropertyValue("--ink-soft").trim() || "#b1c1d5";
+  const gridFallback = css.getPropertyValue("--line").trim() || "#30475d";
+  const tooltipBgFallback = css.getPropertyValue("--tooltip-bg").trim() || "#0b121b";
+  const tooltipBorderFallback = css.getPropertyValue("--tooltip-border").trim() || "#3a4f67";
+  const tooltipTitleFallback = css.getPropertyValue("--tooltip-title").trim() || "#f6f9ff";
+  const tooltipBodyFallback = css.getPropertyValue("--tooltip-body").trim() || "#edf4ff";
+  const fontFallback = css.getPropertyValue("--font-main").trim() || '"Plus Jakarta Sans", sans-serif';
+
   return {
-    axisColor: css.getPropertyValue("--ink-soft").trim() || "#b1c1d5",
-    gridColor: css.getPropertyValue("--line").trim() || "#30475d",
-    tooltipBg: css.getPropertyValue("--tooltip-bg").trim() || "#0b121b",
-    tooltipBorder: css.getPropertyValue("--tooltip-border").trim() || "#3a4f67",
-    tooltipTitle: css.getPropertyValue("--tooltip-title").trim() || "#f6f9ff",
-    tooltipBody: css.getPropertyValue("--tooltip-body").trim() || "#edf4ff",
+    axisColor: css.getPropertyValue("--chart-axis-color").trim() || axisFallback,
+    xGridColor: css.getPropertyValue("--chart-grid-x").trim() || gridFallback,
+    yGridColor: css.getPropertyValue("--chart-grid-y").trim() || gridFallback,
+    tooltipBg: css.getPropertyValue("--chart-tooltip-bg").trim() || tooltipBgFallback,
+    tooltipBorder: css.getPropertyValue("--chart-tooltip-border").trim() || tooltipBorderFallback,
+    tooltipTitle: css.getPropertyValue("--chart-tooltip-title").trim() || tooltipTitleFallback,
+    tooltipBody: css.getPropertyValue("--chart-tooltip-body").trim() || tooltipBodyFallback,
+    chartFontFamily: css.getPropertyValue("--font-chart").trim() || fontFallback,
+    terminalFontFamily: css.getPropertyValue("--font-terminal").trim() || fontFallback,
   };
 }
 
@@ -274,17 +292,23 @@ function refreshChartTheme() {
   const themeTokens = getChartThemeTokens();
 
   state.chart.options.scales.x.title.color = themeTokens.axisColor;
+  state.chart.options.scales.x.title.font.family = themeTokens.chartFontFamily;
   state.chart.options.scales.x.ticks.color = themeTokens.axisColor;
-  state.chart.options.scales.x.grid.color = themeTokens.gridColor;
+  state.chart.options.scales.x.ticks.font.family = themeTokens.chartFontFamily;
+  state.chart.options.scales.x.grid.color = buildXGridColorCallback(themeTokens);
 
   state.chart.options.scales.y.title.color = themeTokens.axisColor;
+  state.chart.options.scales.y.title.font.family = themeTokens.chartFontFamily;
   state.chart.options.scales.y.ticks.color = themeTokens.axisColor;
-  state.chart.options.scales.y.grid.color = themeTokens.gridColor;
+  state.chart.options.scales.y.ticks.font.family = themeTokens.chartFontFamily;
+  state.chart.options.scales.y.grid.color = themeTokens.yGridColor;
 
   state.chart.options.plugins.tooltip.backgroundColor = themeTokens.tooltipBg;
   state.chart.options.plugins.tooltip.borderColor = themeTokens.tooltipBorder;
   state.chart.options.plugins.tooltip.titleColor = themeTokens.tooltipTitle;
   state.chart.options.plugins.tooltip.bodyColor = themeTokens.tooltipBody;
+  state.chart.options.plugins.tooltip.titleFont.family = themeTokens.terminalFontFamily;
+  state.chart.options.plugins.tooltip.bodyFont.family = themeTokens.chartFontFamily;
 
   state.chart.update("none");
   alignRangeWithChartAxis();
@@ -294,7 +318,7 @@ function refreshChartTheme() {
 function updateThemeToggleUi(theme) {
   if (!themeToggleBtn) return;
   const isDeep = theme === "deep";
-  themeToggleBtn.textContent = isDeep ? "切换为清新风格" : "切换为深色专业";
+  themeToggleBtn.textContent = isDeep ? "切换为浅色终端" : "切换为深色终端";
   themeToggleBtn.setAttribute("aria-pressed", isDeep ? "true" : "false");
 }
 
@@ -323,7 +347,7 @@ function applyTheme(theme, { persist = true, refreshChartStyle = true } = {}) {
 }
 
 function initTheme() {
-  let savedTheme = "fresh";
+  let savedTheme = "deep";
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === "fresh" || stored === "deep") {
@@ -601,6 +625,12 @@ function formatMetricValue(metricKey, value) {
   return `${decimalFormatter.format(value)}x`;
 }
 
+function buildYAxisTitle(metricKey, frequencyKey) {
+  const metricMeta = METRICS[metricKey] ?? METRICS.revenue;
+  const frequencyMeta = FREQUENCY_META[frequencyKey] ?? FREQUENCY_META.quarterly;
+  return [metricMeta.axisLabel, frequencyMeta.granularityLabel];
+}
+
 function formatCsvMetricValue(metricKey, value) {
   if (!isFiniteNumber(value)) return "";
   if (metricKey === "revenue" || metricKey === "netIncome") {
@@ -794,12 +824,12 @@ function buildDatasetsForView() {
       forecastedLabels: [...forecasted],
       borderColor: company.color,
       backgroundColor: company.color,
-      borderWidth: 2.2,
-      pointRadius: 1.8,
-      pointHoverRadius: 5,
+      borderWidth: 2,
+      pointRadius: 1.4,
+      pointHoverRadius: 4.2,
       pointHitRadius: 10,
       spanGaps: spanGapThreshold,
-      tension: 0.2,
+      tension: 0.18,
       hidden: !state.visibleCompanies.has(company.id),
     };
   });
@@ -813,13 +843,39 @@ function formatXAxisTick(label) {
   return label.endsWith("Q1") ? label.slice(0, 4) : "";
 }
 
+function resolveXGridColor(themeTokens, label, tickIndex) {
+  const hidden = "rgba(0,0,0,0)";
+
+  if (state.frequency === "annual") {
+    // Reduce density in annual mode: draw one vertical grid every 2 years.
+    return tickIndex % 2 === 0 ? themeTokens.xGridColor : hidden;
+  }
+
+  if (typeof label !== "string") return hidden;
+  // Reduce density in quarterly/rolling modes: only keep yearly separators.
+  return label.endsWith("Q1") ? themeTokens.xGridColor : hidden;
+}
+
+function buildXGridColorCallback(themeTokens) {
+  return (context) => {
+    const labels = context?.chart?.data?.labels ?? [];
+    const rawIndex = context?.index;
+    const parsedIndex = Number(context?.tick?.value);
+    const tickIndex = Number.isInteger(rawIndex) ? rawIndex : (Number.isFinite(parsedIndex) ? parsedIndex : -1);
+    const labelFromTick = typeof context?.tick?.label === "string" ? context.tick.label : null;
+    const labelFromValue = typeof context?.tick?.value === "string" ? context.tick.value : null;
+    const label = labels[tickIndex] ?? labelFromTick ?? labelFromValue;
+    return resolveXGridColor(themeTokens, label, tickIndex >= 0 ? tickIndex : 0);
+  };
+}
+
 function refreshChart() {
   if (!state.chart) return;
 
   const { labels, datasets } = buildDatasetsForView();
   state.chart.data.labels = labels;
   state.chart.data.datasets = datasets;
-  state.chart.options.scales.y.title.text = METRICS[state.metric].axisLabel;
+  state.chart.options.scales.y.title.text = buildYAxisTitle(state.metric, state.frequency);
   state.chart.options.scales.x.title.text = (FREQUENCY_META[state.frequency] ?? FREQUENCY_META.quarterly).axisTitle;
   state.chart.update();
   alignRangeWithChartAxis();
@@ -901,35 +957,41 @@ function buildChart() {
             display: true,
             text: (FREQUENCY_META[state.frequency] ?? FREQUENCY_META.quarterly).axisTitle,
             color: themeTokens.axisColor,
-            font: { family: "IBM Plex Mono, monospace", size: 11 },
+            font: { family: themeTokens.chartFontFamily, size: 11, weight: "600" },
           },
           ticks: {
             autoSkip: false,
             color: themeTokens.axisColor,
-            font: { family: "IBM Plex Mono, monospace", size: 10 },
+            font: { family: themeTokens.chartFontFamily, size: 10, weight: "600" },
             callback(value) {
               const label = this.getLabelForValue(value);
               return formatXAxisTick(label);
             },
           },
-          grid: { color: themeTokens.gridColor },
+          grid: {
+            color: buildXGridColorCallback(themeTokens),
+            borderDash: [],
+          },
         },
         y: {
           border: { color: "rgba(0,0,0,0)" },
           title: {
             display: true,
-            text: METRICS[state.metric].axisLabel,
+            text: buildYAxisTitle(state.metric, state.frequency),
             color: themeTokens.axisColor,
-            font: { family: "IBM Plex Mono, monospace", size: 11 },
+            font: { family: themeTokens.chartFontFamily, size: Y_AXIS_TITLE_FONT_SIZE, weight: "600" },
           },
           ticks: {
             color: themeTokens.axisColor,
-            font: { family: "IBM Plex Mono, monospace", size: 10 },
+            font: { family: themeTokens.chartFontFamily, size: 10, weight: "600" },
             callback(value) {
               return formatYAxisTick(state.metric, Number(value));
             },
           },
-          grid: { color: themeTokens.gridColor },
+          grid: {
+            color: themeTokens.yGridColor,
+            borderDash: [4, 6],
+          },
         },
       },
       plugins: {
@@ -942,6 +1004,8 @@ function buildChart() {
           borderWidth: 1,
           cornerRadius: 8,
           padding: 10,
+          titleFont: { family: themeTokens.terminalFontFamily, size: 11, weight: "600" },
+          bodyFont: { family: themeTokens.chartFontFamily, size: 11, weight: "500" },
           callbacks: {
             title(context) {
               const prefix = (FREQUENCY_META[state.frequency] ?? FREQUENCY_META.quarterly).tooltipPrefix;

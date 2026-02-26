@@ -161,6 +161,7 @@ window.FINANCIAL_SOURCE_DATA = {
 - 用真实值覆盖后，自动清理对应季度的预测标记（`forecastFlags`）
 - 更新 `meta.generatedAt` 与 `meta.periodRange`
 - 对 TWD 财务口径自动按 FRED 汇率换算为 USD（当前用于台积电）
+- 台积电关键季度（当前含 `2024Q4-2025Q4`）会优先使用官方季报口径覆盖营收/净利/毛利率，减少第三方抓取偏差
 - 其他未配置的非 USD 口径会自动跳过，避免单位污染
 - 若无真实数据变化则不写入 `data.js`（避免空提交）
 

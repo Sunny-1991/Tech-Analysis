@@ -35,6 +35,15 @@ const FX_SERIES_CONFIG = {
     label: "FRED DEXTAUS (TWD per USD)",
   },
 };
+const TSMC_OFFICIAL_QUARTERLY_OVERRIDES = {
+  // Source: TSMC Quarterly Results / Management Report (official IR pages).
+  // Values are reported in NT$ billions and US$ billions.
+  "2024Q4": { revenueUsdBillions: 26.88, revenueTwdBillions: 868.46, netIncomeTwdBillions: 374.68, grossMarginPct: 59.0 },
+  "2025Q1": { revenueUsdBillions: 25.53, revenueTwdBillions: 839.25, netIncomeTwdBillions: 361.56, grossMarginPct: 58.8 },
+  "2025Q2": { revenueUsdBillions: 30.07, revenueTwdBillions: 933.79, netIncomeTwdBillions: 398.27, grossMarginPct: 58.6 },
+  "2025Q3": { revenueUsdBillions: 33.1, revenueTwdBillions: 989.92, netIncomeTwdBillions: 452.3, grossMarginPct: 59.5 },
+  "2025Q4": { revenueUsdBillions: 33.73, revenueTwdBillions: 1046.09, netIncomeTwdBillions: 505.74, grossMarginPct: 62.3 },
+};
 const fxSeriesCache = new Map();
 
 function resolveCompanyId(token) {
@@ -414,6 +423,36 @@ async function convertRowsToUsd(rows, currencyCode) {
   };
 }
 
+function applyTsmcOfficialOverrides(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { rows: rows || [], appliedPeriods: [] };
+  }
+
+  const appliedPeriods = [];
+  const nextRows = rows.map((row) => {
+    const override = TSMC_OFFICIAL_QUARTERLY_OVERRIDES[row.period];
+    if (!override) return row;
+
+    const impliedRate = override.revenueTwdBillions / override.revenueUsdBillions;
+    if (!Number.isFinite(impliedRate) || impliedRate <= 0) return row;
+
+    appliedPeriods.push(row.period);
+    const nextRow = {
+      ...row,
+      revenue: Math.round(override.revenueUsdBillions * 1e9),
+      netIncome: Math.round((override.netIncomeTwdBillions / impliedRate) * 1e9),
+    };
+
+    if (Number.isFinite(override.grossMarginPct)) {
+      nextRow.grossMarginPct = override.grossMarginPct;
+    }
+
+    return nextRow;
+  });
+
+  return { rows: nextRows, appliedPeriods };
+}
+
 function ensureCompanyShape(company) {
   if (!company.revenue || typeof company.revenue !== "object") company.revenue = {};
   if (!company.earnings || typeof company.earnings !== "object") company.earnings = {};
@@ -635,6 +674,14 @@ async function run() {
         console.warn(`  汇率换算失败：${error.message}`);
         if (index < selectedCompanies.length - 1) await sleep(500);
         continue;
+      }
+    }
+
+    if (companySource.id === "tsmc") {
+      const overridden = applyTsmcOfficialOverrides(rows);
+      rows = overridden.rows;
+      if (overridden.appliedPeriods.length > 0) {
+        console.log(`  已应用台积电官方口径修正：${overridden.appliedPeriods.join(", ")}`);
       }
     }
 
