@@ -187,11 +187,9 @@ const rangeEndEl = document.getElementById("rangeEnd");
 const rangeLabelEl = document.getElementById("rangeLabel");
 const rangeSlidersEl = document.getElementById("rangeSliders");
 const rangeFillEl = document.getElementById("rangeFill");
-const themeToggleBtn = document.getElementById("themeToggleBtn");
 const periodRangeChipEl = document.getElementById("periodRangeChip");
 const metricInputs = Array.from(document.querySelectorAll('input[name="metric"]'));
 const frequencyInputs = Array.from(document.querySelectorAll('input[name="frequency"]'));
-const THEME_STORAGE_KEY = "enterprise-finance-dashboard-theme";
 
 const decimalFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const BASE_Y_AXIS_TITLE_FONT_SIZE = 11;
@@ -286,77 +284,8 @@ function getChartThemeTokens() {
   };
 }
 
-function refreshChartTheme() {
-  if (!state.chart) return;
-  const themeTokens = getChartThemeTokens();
-
-  state.chart.options.scales.x.title.color = themeTokens.axisColor;
-  state.chart.options.scales.x.title.font.family = themeTokens.chartFontFamily;
-  state.chart.options.scales.x.ticks.color = themeTokens.axisColor;
-  state.chart.options.scales.x.ticks.font.family = themeTokens.chartFontFamily;
-  state.chart.options.scales.x.grid.color = buildXGridColorCallback(themeTokens);
-
-  state.chart.options.scales.y.title.color = themeTokens.axisColor;
-  state.chart.options.scales.y.title.font.family = themeTokens.chartFontFamily;
-  state.chart.options.scales.y.ticks.color = themeTokens.axisColor;
-  state.chart.options.scales.y.ticks.font.family = themeTokens.chartFontFamily;
-  state.chart.options.scales.y.grid.color = themeTokens.yGridColor;
-
-  state.chart.options.plugins.tooltip.backgroundColor = themeTokens.tooltipBg;
-  state.chart.options.plugins.tooltip.borderColor = themeTokens.tooltipBorder;
-  state.chart.options.plugins.tooltip.titleColor = themeTokens.tooltipTitle;
-  state.chart.options.plugins.tooltip.bodyColor = themeTokens.tooltipBody;
-  state.chart.options.plugins.tooltip.titleFont.family = themeTokens.terminalFontFamily;
-  state.chart.options.plugins.tooltip.bodyFont.family = themeTokens.chartFontFamily;
-
-  state.chart.update("none");
-  alignRangeWithChartAxis();
-  updateRangeVisual();
-}
-
-function updateThemeToggleUi(theme) {
-  if (!themeToggleBtn) return;
-  const isDeep = theme === "deep";
-  themeToggleBtn.textContent = isDeep ? "切换为浅色终端" : "切换为深色终端";
-  themeToggleBtn.setAttribute("aria-pressed", isDeep ? "true" : "false");
-}
-
-function applyTheme(theme, { persist = true, refreshChartStyle = true } = {}) {
-  const finalTheme = theme === "deep" ? "deep" : "fresh";
-
-  if (finalTheme === "deep") {
-    document.body.dataset.theme = "deep";
-  } else {
-    document.body.removeAttribute("data-theme");
-  }
-
-  updateThemeToggleUi(finalTheme);
-
-  if (persist) {
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, finalTheme);
-    } catch (error) {
-      console.warn("主题偏好保存失败", error);
-    }
-  }
-
-  if (refreshChartStyle) {
-    refreshChartTheme();
-  }
-}
-
 function initTheme() {
-  let savedTheme = "deep";
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === "fresh" || stored === "deep") {
-      savedTheme = stored;
-    }
-  } catch (error) {
-    console.warn("主题偏好读取失败", error);
-  }
-
-  applyTheme(savedTheme, { persist: false, refreshChartStyle: false });
+  document.body.dataset.theme = "deep";
 }
 
 function isFiniteNumber(value) {
@@ -1023,13 +952,6 @@ function bindEvents() {
   if (downloadBtn) {
     downloadBtn.addEventListener("click", () => {
       downloadCurrentChartImage();
-    });
-  }
-
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener("click", () => {
-      const nextTheme = document.body.dataset.theme === "deep" ? "fresh" : "deep";
-      applyTheme(nextTheme, { persist: true, refreshChartStyle: true });
     });
   }
 }
