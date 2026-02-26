@@ -44,7 +44,7 @@ const FREQUENCY_META = {
 const COMPANIES = [
   { id: "apple", name: "苹果", ticker: "AAPL", color: "#ff9f1c" },
   { id: "microsoft", name: "微软", ticker: "MSFT", color: "#57a0ff" },
-  { id: "alphabet", name: "谷歌", ticker: "GOOGL", color: "#3ed07b" },
+  { id: "alphabet", name: "谷歌", ticker: "GOOGL", color: "#2fd4b0" },
   { id: "amazon", name: "亚马逊", ticker: "AMZN", color: "#ffd166" },
   { id: "meta", name: "Meta", ticker: "META", color: "#ff5f87" },
   { id: "nvidia", name: "英伟达", ticker: "NVDA", color: "#9be000" },
